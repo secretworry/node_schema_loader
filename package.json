@@ -1,11 +1,20 @@
 {
-  "name": "schema_loader",
+  "name": "schema-loader",
   "version": "1.0.0",
   "description": "Loading data against given tree-like schema",
-  "main": "index.js",
+  "main": "lib/index.js",
   "scripts": {
-    "test": "npm test"
+    "build": "babel src/ -d lib/",
+    "prepublish": "yarn run build",
+    "test": ""
   },
   "author": "secretworry",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "babel-cli": "^6.24.1",
+    "babel-preset-env": "^1.4.0",
+    "babel-preset-flow": "^6.23.0",
+    "flow": "^0.2.3",
+    "flow-bin": "^0.44.0"
+  }
 }
