@@ -13,10 +13,10 @@ import type {ResolverResult, Loader, Document} from './types';
 
 import type {Node} from './schema';
 
-export interface Plugin {
-  init(context: Context): Context;
-  invoke(args: any, context: Context): ResolverResult;
-  postprocess(root: Document, context: Context): Promise<any> | any
+export type Plugin = {
+  init: (context: Context) => Context;
+  invoke: (args: any, context: Context) => ResolverResult;
+  postprocess: (root: Document, context: Context) => Promise<any> | any
 }
 
 export class PluginInvocation {
@@ -33,20 +33,19 @@ declare type BatchPluginArgs<Id, Value> = {
   loader: Loader<Id, Value>,
   ids: Array<Id>,
   callback: (values: {[Id]: Value}) => Document
-}
+};
 
-export class BatchPlugin implements Plugin{
-
+export const batchPlugin = {
   init(context: Context): Context {
     context.batchPlugin = context.batchPlugin || {};
     return context;
-  }
+  },
 
-  batch<Id, Value>(loader: Loader<Id, Value>, ids: Array<Id>, callback: (values: {[Id]: Value}) => Document) {
-    return new PluginInvocation(BatchPlugin, {loader: loader, ids: ids, callback: callback});
-  };
+  batch: function<Id, Value>(loader: Loader<Id, Value>, ids: Array<Id>, callback: (values: {[Id]: Value}) => Document) {
+    return new PluginInvocation(batchPlugin, {loader: loader, ids: ids, callback: callback});
+  },
 
-  invoke(args: BatchPluginArgs<*, *>, context: Context) {
+  invoke: function(args: BatchPluginArgs<*, *>, context: Context) {
     return new Promise(function(resolve, reject) {
       let group = context.batchPlugin[args.loader];
       if (!group) {
@@ -62,9 +61,9 @@ export class BatchPlugin implements Plugin{
         }
       });
     });
-  }
+  },
 
-  postprocess(root: Document, context: Context) {
+  postprocess: function(root: Document, context: Context): Promise<*> {
     const meta = context.batchPlugin;
     context.batchPlugin = {};
     const promises = _.map(meta, function (group) {
@@ -77,5 +76,5 @@ export class BatchPlugin implements Plugin{
     });
     return Promise.all(promises);
   }
-}
+};
 

@@ -6,19 +6,19 @@
  */
 import type {Document, PrimitiveType} from './types';
 
-interface Field {
+export interface Field {
   visit(visitor: Visitor): void;
   resolve(): Document;
 }
 
-type Visitor = {
+export type Visitor = {
   visitObjectField: (field: ObjectField) => void;
   visitArrayField: (field: ArrayField) => void;
   visitLeafField: (field: LeafField) => void;
   visitLoadingField: (field: LoadingField) => void;
 }
 
-class ObjectField implements Field {
+export class ObjectField implements Field {
   rootValue: Object;
   fields: {[string]: Field};
 
@@ -43,7 +43,7 @@ class ObjectField implements Field {
   }
 }
 
-class ArrayField implements Field {
+export class ArrayField implements Field {
   values: Array<Field>;
 
   constructor(values: Array<Field>) {
@@ -66,7 +66,7 @@ class ArrayField implements Field {
   }
 }
 
-class LeafField implements Field {
+export class LeafField implements Field {
   value: PrimitiveType;
 
   constructor(value: PrimitiveType) {
@@ -82,7 +82,7 @@ class LeafField implements Field {
   }
 }
 
-class LoadingField implements Field {
+export class LoadingField implements Field {
   promise: Promise<Document>;
   callback: (Document, any) => Promise<any>;
 
