@@ -1,5 +1,5 @@
 {
-  "name": "node_schema_loader",
+  "name": "schema_loader",
   "version": "1.0.0",
   "description": "Loading data against given tree-like schema",
   "main": "index.js",
