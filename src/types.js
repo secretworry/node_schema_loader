@@ -31,3 +31,4 @@ export type ResolverResult =
 
 export type Resolver = (parentValue: {[string]: Document}, info: ResolverInfo) => ResolverResult;
 
+export type Loader<Id, Value> = (ids: Array<Id>) => Promise<{[Id]: Value}>
