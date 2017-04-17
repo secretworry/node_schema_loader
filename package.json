@@ -16,5 +16,8 @@
     "babel-preset-flow": "^6.23.0",
     "flow": "^0.2.3",
     "flow-bin": "^0.44.0"
+  },
+  "dependencies": {
+    "lodash": "^4.17.4"
   }
 }
