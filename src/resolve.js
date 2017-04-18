@@ -1,3 +1,4 @@
+// @flow
 "use strict";
 /**
  * @author dusiyu
@@ -8,29 +9,49 @@ import * as _ from 'lodash';
 
 import {PluginInvocation, batchPlugin} from './plugin';
 
-import type {DefinitionObject, Schema} from './schema'
+import type {DefinitionObject, Node, NodeLike} from './schema';
 
-import type {Document, ResolverResult} from './types'
+import {Schema} from './schema';
+
+import type {Document, ResolverResult, PrimitiveType} from './types';
 
 import * as document from './document';
 
-import type {Field} from './document';
+import type {Field, LoadingField, ObjectField} from './document';
 
 type ResolvedResolverResult =
   | Document
   | PluginInvocation
 
+type RootValueType =
+  | Document
+  | Promise<Document>
+
+
 export type Context = {
-  rootValue: ResolverResult,
-  options: {[string]: any},
-  root: ?Field
+  rootValue: RootValueType,
+  options: Object,
+  root?: Field,
+  [string]: any
+}
+
+class CollectLoadingLeavesVisitor extends document.BaseVisitor {
+  loadingLeaves: Array<LoadingField>;
+  
+  constructor() {
+    super();
+    this.loadingLeaves = [];
+  }
+  visitLoadingField(loading: LoadingField) {
+    this.loadingLeaves.push(loading);
+  }
 }
 
 const plugins = [];
 
 plugins.push(batchPlugin);
 
-function _buildContext(rootValue: Document, options?: {[string]: any}) {
+function _buildContext(rootValue: RootValueType, options?: {[string]: any}) {
   return {
     rootValue: rootValue,
     options: options || {},
@@ -41,7 +62,7 @@ function isPrimitive(val) {
   return val === null || typeof val === 'string' || typeof val === 'boolean' || typeof val === 'number'
 }
 
-function _getRoot(schema, context): ResolverResult {
+function _getRoot(schema, context): Field {
   if (!context.root) {
     const rootValue = context.rootValue || (schema.resolver && schema.resolver()) || {};
     context.root = _resolveSchema(schema, rootValue, context);
@@ -49,7 +70,7 @@ function _getRoot(schema, context): ResolverResult {
   return context.root;
 }
 
-function _resolveSchema(schema: Schema, rootValue: ResolverResult, context: Context): Field {
+function _resolveSchema(schema: Schema, rootValue: RootValueType, context: Context): Field {
   if (rootValue instanceof Promise) {
     return new document.LoadingField(rootValue, function (value, context) {
       context.root = _expand(schema, value, context);
@@ -59,33 +80,35 @@ function _resolveSchema(schema: Schema, rootValue: ResolverResult, context: Cont
   }
 }
 
-function _expand(node, value: ResolvedResolverResult, context) {
+function _expand(node: NodeLike, value: Document, context) {
   if (value instanceof Array) {
     const values = _.map(value, function (item) {
       if (item instanceof Promise) {
-        throw "Cannot expand an array contains the Promise as element, you should consider to return a Promise of array";
+        throw new Error("Cannot expand an array contains the Promise as element, you should consider to return a Promise of array");
       }
       return _expand(node, item, context);
     });
     return new document.ArrayField(values);
   } else if (isPrimitive(value)) {
-    return new document.LeafField(value);
+    const primitive: PrimitiveType = (value: any);
+    return new document.LeafField(primitive);
   } else if (_.isObject(value)) {
-    const objectField = new document.ObjectField(value);
+    const object: {[string]: Document} = (value: any);
+    const objectField = new document.ObjectField(object);
     objectField.fields = _.reduce(node.children, function(fields, node) {
-      fields[node.name] = _resolveNode(node, value, objectField, context);
+      fields[node.name] = _resolveNode(node, object, objectField, context);
       return fields;
     }, objectField.fields);
     return objectField;
   } else {
-    throw "Unexpected value " + value;
+    throw new Error(`Unexpected value ${String(value)}`);
   }
 }
 
-function _resolveValue(node: Node, value, parent, context) {
+function _resolveValue(node: Node, value: ResolverResult, parent: ObjectField, context: Context) {
   if (value instanceof PluginInvocation) {
     return _resolveValue(node, value.invoke(node, context), parent, context);
-  } else if (isPromise(value)) {
+  } else if (value instanceof Promise) {
     return new document.LoadingField(value, function (value, context) {
       parent.fields[node.name] = _expand(node, value, context);
       return true;
@@ -95,7 +118,7 @@ function _resolveValue(node: Node, value, parent, context) {
   }
 }
 
-function _callResolver(node, parentValue, context) {
+function _callResolver(node: Node, parentValue: {[string]: Document}, context: Context) {
   if (node.resolver) {
     return node.resolver(parentValue, {node: node, options: context.options, args: node.args || {}})
   } else if (parentValue) {
@@ -105,7 +128,7 @@ function _callResolver(node, parentValue, context) {
   }
 }
 
-function _resolveNode(node, parentValue, parent, context) {
+function _resolveNode(node: Node, parentValue: {[string]: Document}, parent: ObjectField, context: Context) {
   return _resolveValue(node, _callResolver(node, parentValue, context), parent, context);
 }
 
@@ -128,7 +151,26 @@ function _doResolve(schema: Schema, context: Context) {
   });
 }
 
-export function resolve(definitionOrSchema: DefinitionObject | Schema, rootValue: Document, options?: {[string]: any}) {
+function _init(context: Context): Context {
+  return _.reduce(plugins, function(context, plugin) {
+    return plugin.init(context);
+  }, context);
+}
+
+function _postprocess(root: Document, context: Context): Promise<*> {
+  return _.reduce(plugins, function(promise, plugin) {
+    const result = plugin.postprocess(root, context);
+    if (result instanceof Promise) {
+      return promise.then(function() {
+        return result;
+      });
+    } else {
+      return promise;
+    }
+  }, Promise.resolve(true));
+}
+
+export function resolve(definitionOrSchema: DefinitionObject | Schema, rootValue: RootValueType, options?: {[string]: any}) {
   let schema;
   if (definitionOrSchema instanceof Schema) {
     schema = definitionOrSchema;

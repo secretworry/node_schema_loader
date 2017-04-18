@@ -7,10 +7,12 @@
 
 import type {PluginInvocation} from './plugin';
 
+import type {Node} from './schema';
+
 export type PrimitiveType =
-  | String
-  | Number
-  | Boolean
+  | string
+  | number
+  | boolean
   | null
 
 export type Document =

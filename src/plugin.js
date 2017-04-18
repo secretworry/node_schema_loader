@@ -23,6 +23,11 @@ export class PluginInvocation {
   plugin: Plugin;
   args: any;
 
+  constructor(plugin: Plugin, args: any) {
+    this.plugin = plugin;
+    this.args = args;
+  }
+
   invoke(node: Node, context: Context): ResolverResult {
     return this.plugin.invoke(this.args, context);
   }

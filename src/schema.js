@@ -7,9 +7,7 @@
 
 import * as _ from 'lodash';
 
-import type {Document, Resolver} from './types';
-
-import type {PluginInvocation} from './plugin';
+import type {Resolver, ResolverResult} from './types';
 
 export type DefinitionObject = {
   __resolver__?: Resolver,
@@ -37,13 +35,23 @@ function _indexNodesReducer(index, node) {
   return index;
 }
 
+export type NodeLike = {
+  children: Array<Node>
+}
+
+type IndexedNode = {[string]: Node}
+
+const assignInWith2 = function<A: Object>(object: A, s1: A, customizer: (objValue: any, srcValue: any, key: string, object: A, source: A) => any|void): A {
+  return (_.assignInWith(object, s1, customizer): any)
+};
+
 export class Node {
-  name: ?string;
+  name: string;
   resolver: ?Resolver;
-  args: any;
+  args: ?Object;
   children: Array<Node>;
 
-  constructor(name: ?string) {
+  constructor(name: string) {
     this.name = name;
     this.resolver = null;
     this.args = null;
@@ -71,9 +79,9 @@ export class Node {
   }
 
   static mergeNodes(baseNodes: Array<Node>, sourceNodes: Array<Node>): Array<Node> {
-    const baseIndex = _.reduce(baseNodes, _indexNodesReducer, {});
-    const sourceIndex = _.reduce(sourceNodes, _indexNodesReducer, {});
-    return _.values(_.assignInWith(baseIndex, sourceIndex, function (obj, src) {
+    const baseIndex: IndexedNode = _.reduce(baseNodes, _indexNodesReducer, {});
+    const sourceIndex: IndexedNode = _.reduce(sourceNodes, _indexNodesReducer, {});
+    return _.values(assignInWith2(baseIndex, sourceIndex, function (obj, src) {
       if (_.isUndefined(obj)) {
         return src;
       } else {
@@ -96,7 +104,7 @@ export class Node {
 }
 
 export class Schema {
-  resolver: ?Resolver;
+  resolver: ?(() => Document | Promise<Document>);
   args: any;
   children: Array<Node>;
   constructor() {

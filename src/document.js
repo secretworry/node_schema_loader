@@ -5,17 +5,26 @@
  * @date 4/17/17.
  */
 import type {Document, PrimitiveType} from './types';
+import type {Context} from './resolve';
 
 export interface Field {
   visit(visitor: Visitor): void;
   resolve(): Document;
 }
 
-export type Visitor = {
-  visitObjectField: (field: ObjectField) => void;
-  visitArrayField: (field: ArrayField) => void;
-  visitLeafField: (field: LeafField) => void;
-  visitLoadingField: (field: LoadingField) => void;
+export interface Visitor {
+  visitObjectField(field: ObjectField): void;
+  visitArrayField(field: ArrayField): void;
+  visitLeafField(field: LeafField): void;
+  visitLoadingField(field: LoadingField): void;
+}
+
+export class BaseVisitor implements Visitor {
+
+  visitObjectField(field: ObjectField): void { }
+  visitArrayField(field: ArrayField): void { }
+  visitLeafField(field: LeafField): void { }
+  visitLoadingField(field: LoadingField): void { }
 }
 
 export class ObjectField implements Field {
@@ -84,15 +93,22 @@ export class LeafField implements Field {
 
 export class LoadingField implements Field {
   promise: Promise<Document>;
-  callback: (Document, any) => Promise<any>;
+  callback: (Document, any) => void;
 
-  constructor(promise: Promise<Document>, callback: (Document, any) => Promise<any>) {
+  constructor(promise: Promise<Document>, callback: (Document, any) => any) {
     this.promise = promise;
     this.callback = callback;
   }
 
   resolve() {
     throw "Resolving a Loading Field";
+  }
+
+  load(context: Context) {
+    const callback = this.callback;
+    return this.promise.then(function(value) {
+      return callback(value, context);
+    });
   }
 
   visit(visitor: Visitor) {
