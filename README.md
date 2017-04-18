@@ -2,6 +2,7 @@
 
 Load data against tree-like schema
 
+[![Build Status](https://travis-ci.org/secretworry/node_schema_loader.svg?branch=master)](https://travis-ci.org/secretworry/node_schema_loader.svg?branch=master)
 
 ## Why schema loader?
 
